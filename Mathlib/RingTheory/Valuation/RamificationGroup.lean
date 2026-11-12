@@ -19,15 +19,18 @@ that the inertia subgroup of a valuation subring is the ramification group `G_0`
 ideal (`ValuationSubring.inertiaSubgroup_eq_ramificationGroup_zero`), and that over a discrete
 valuation ring with a single generator `x`, `σ ∈ G_i` if and only if `v(σ x - x) ≥ i + 1`
 (`IsDiscreteValuationRing.mem_ramificationGroup_iff_le_addVal`, see [serre1968], Chapter IV, §1).
+We also define Serre's lower index `i_G(σ) = inf_x v(σ x - x)` over a discrete valuation ring
+(`IsDiscreteValuationRing.lowerIndex`), whose superlevel sets are the ramification groups.
 
 ## Provenance
 
-`ValuationSubring.inertiaSubgroup_eq_ramificationGroup_zero` and
-`IsDiscreteValuationRing.mem_ramificationGroup_iff_le_addVal` are adapted from the Tau Ceti library
+`ValuationSubring.inertiaSubgroup_eq_ramificationGroup_zero`,
+`IsDiscreteValuationRing.mem_ramificationGroup_iff_le_addVal` and the lower index
+`IsDiscreteValuationRing.lowerIndex` with its API are adapted from the Tau Ceti library
 (https://github.com/TauCetiProject/TauCeti, commit `396c3bd971e9722aa8656231760e710fe641d8cf`,
 file `TauCeti/RingTheory/LocalRing/RamificationGroup.lean`; Copyright (c) 2026 The Tau Ceti
-contributors; released under the Apache 2.0 license), restated for `Ideal.ramificationGroup` and
-with new proofs.
+contributors; released under the Apache 2.0 license), restated for `Ideal.ramificationGroup`;
+several proofs are new.
 -/
 
 @[expose] public section
@@ -100,5 +103,106 @@ theorem mem_ramificationGroup_iff_le_addVal {G : Type*} [Group G] [MulSemiringAc
     (hx : Algebra.adjoin A {x} = ⊤) {i : ℤ} {σ : G} :
     σ ∈ (maximalIdeal R).ramificationGroup G i ↔ ((i + 1).toNat : ℕ∞) ≤ addVal R (σ • x - x) := by
   rw [Ideal.mem_ramificationGroup_iff_of_adjoin_singleton_eq_top hx, mem_maximalIdeal_pow_iff]
+
+section LowerIndex
+
+variable {G : Type*} [Group G] [MulSemiringAction G R]
+
+variable (R) in
+/-- Serre's lower index `i_G(σ)` of an element `σ` acting on a discrete valuation ring `R`: the
+infimum of the valuations `v(σ x - x)` over all `x : R`, which is `⊤` when `σ` acts trivially. -/
+noncomputable def lowerIndex (σ : G) : ℕ∞ :=
+  ⨅ x : R, addVal R (σ • x - x)
+
+/-- A lower bound for the lower index is a lower bound for every `v(σ x - x)`. -/
+theorem le_lowerIndex_iff {n : ℕ∞} {σ : G} :
+    n ≤ lowerIndex R σ ↔ ∀ x : R, n ≤ addVal R (σ • x - x) :=
+  le_iInf_iff
+
+/-- The lower index is at most `v(σ x - x)` for every `x`. -/
+theorem lowerIndex_le_addVal (σ : G) (x : R) : lowerIndex R σ ≤ addVal R (σ • x - x) :=
+  iInf_le _ x
+
+/-- The ramification groups are the superlevel sets of the lower index: `σ ∈ G_i` if and only if
+`i_G(σ) ≥ i + 1`. -/
+theorem mem_ramificationGroup_iff_le_lowerIndex {i : ℤ} {σ : G} :
+    σ ∈ (maximalIdeal R).ramificationGroup G i ↔ ((i + 1).toNat : ℕ∞) ≤ lowerIndex R σ := by
+  rw [Ideal.mem_ramificationGroup, le_lowerIndex_iff]
+  simp only [mem_maximalIdeal_pow_iff]
+
+variable (R) in
+/-- The identity has lower index `⊤`. -/
+@[simp]
+theorem lowerIndex_one : lowerIndex R (1 : G) = ⊤ := by
+  simp [lowerIndex]
+
+/-- For a faithful action, only the identity has lower index `⊤`. -/
+@[simp]
+theorem lowerIndex_eq_top_iff [FaithfulSMul G R] {σ : G} : lowerIndex R σ = ⊤ ↔ σ = 1 := by
+  refine ⟨fun h ↦ FaithfulSMul.eq_of_smul_eq_smul (α := R) fun x ↦ ?_, ?_⟩
+  · have hx := le_lowerIndex_iff.1 h.ge x
+    rw [top_le_iff, IsDiscreteValuationRing.addVal_eq_top_iff, sub_eq_zero] at hx
+    rw [hx, one_smul]
+  · rintro rfl
+    exact lowerIndex_one R
+
+/-- `i_G(σ) ≥ n` if and only if `σ ∈ G_{n - 1}`. -/
+theorem natCast_le_lowerIndex_iff_mem_ramificationGroup {n : ℕ} {σ : G} :
+    (n : ℕ∞) ≤ lowerIndex R σ ↔
+      σ ∈ (maximalIdeal R).ramificationGroup G ((n : ℤ) - 1) := by
+  rw [mem_ramificationGroup_iff_le_lowerIndex]
+  norm_num
+
+/-- The lower index is unchanged by inversion. -/
+@[simp]
+theorem lowerIndex_inv (σ : G) : lowerIndex R σ⁻¹ = lowerIndex R σ := by
+  apply ENat.eq_of_forall_natCast_le_iff
+  intro n
+  rw [natCast_le_lowerIndex_iff_mem_ramificationGroup,
+    natCast_le_lowerIndex_iff_mem_ramificationGroup]
+  exact ⟨fun h ↦ by
+    simpa only [inv_inv] using
+      ((maximalIdeal R).ramificationGroup G ((n : ℤ) - 1)).inv_mem h,
+    fun h ↦ ((maximalIdeal R).ramificationGroup G ((n : ℤ) - 1)).inv_mem h⟩
+
+/-- The lower index is constant on conjugacy classes. -/
+@[simp]
+theorem lowerIndex_conj (σ τ : G) : lowerIndex R (σ * τ * σ⁻¹) = lowerIndex R τ := by
+  refine ENat.eq_of_forall_natCast_le_iff fun n ↦ ?_
+  rw [natCast_le_lowerIndex_iff_mem_ramificationGroup,
+    natCast_le_lowerIndex_iff_mem_ramificationGroup]
+  have hN : ((maximalIdeal R).ramificationGroup G ((n : ℤ) - 1)).Normal := inferInstance
+  refine ⟨fun h ↦ ?_, fun h ↦ hN.conj_mem _ h σ⟩
+  convert hN.conj_mem _ h σ⁻¹ using 1
+  group
+
+/-- The lower index of a product is at least the minimum of the two lower indices. -/
+theorem min_le_lowerIndex_mul (σ τ : G) :
+    min (lowerIndex R σ) (lowerIndex R τ) ≤ lowerIndex R (σ * τ) := by
+  apply ENat.forall_natCast_le_iff_le.mp
+  intro n hn
+  rw [natCast_le_lowerIndex_iff_mem_ramificationGroup]
+  exact ((maximalIdeal R).ramificationGroup G ((n : ℤ) - 1)).mul_mem
+    (natCast_le_lowerIndex_iff_mem_ramificationGroup (n := n) (σ := σ) |>.mp
+      (le_trans hn (min_le_left ..)))
+    (natCast_le_lowerIndex_iff_mem_ramificationGroup (n := n) (σ := τ) |>.mp
+      (le_trans hn (min_le_right ..)))
+
+/-- If `G` acts by `A`-algebra automorphisms and `R` is generated by `x` as an `A`-algebra, then
+`i_G(σ) = v(σ x - x)`. -/
+theorem lowerIndex_eq_addVal_of_adjoin_singleton_eq_top {A : Type*} [CommRing A] [Algebra A R]
+    [SMulCommClass G A R] {x : R} (hx : Algebra.adjoin A {x} = ⊤) (σ : G) :
+    lowerIndex R σ = addVal R (σ • x - x) := by
+  refine (lowerIndex_le_addVal σ x).antisymm (le_lowerIndex_iff.2 fun y ↦ ?_)
+  rw [addVal_le_iff_dvd, ← Ideal.mem_span_singleton]
+  have hmem : σ ∈ (Ideal.span {σ • x - x}).inertia G := by
+    rw [Ideal.mem_inertia_iff_of_adjoin_eq_top _ hx]
+    intro z hz
+    rw [Set.mem_singleton_iff] at hz
+    subst z
+    exact Ideal.subset_span (Set.mem_singleton _)
+  exact hmem y
+
+end LowerIndex
 
 end IsDiscreteValuationRing
