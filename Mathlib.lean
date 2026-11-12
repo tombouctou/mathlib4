@@ -6204,6 +6204,7 @@ public import Mathlib.NumberTheory.Primorial
 public import Mathlib.NumberTheory.PythagoreanTriples
 public import Mathlib.NumberTheory.RamificationInertia.Basic
 public import Mathlib.NumberTheory.RamificationInertia.Galois
+public import Mathlib.NumberTheory.RamificationInertia.Herbrand
 public import Mathlib.NumberTheory.RamificationInertia.HilbertTheory
 public import Mathlib.NumberTheory.RamificationInertia.Inertia
 public import Mathlib.NumberTheory.RamificationInertia.Ramification
