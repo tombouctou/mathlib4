@@ -463,6 +463,15 @@ theorem addVal_le_iff_dvd {a b : R} : addVal R a ≤ addVal R b ↔ a ∣ b := b
   · rw [addVal, multiplicity_addValuation_apply, multiplicity_addValuation_apply]
     exact emultiplicity_le_emultiplicity_of_dvd_right h
 
+/-- An element lies in the `n`-th power of the maximal ideal if and only if its valuation is at
+least `n`. This is adapted from `TauCeti.IsDiscreteValuationRing.mem_maximalIdeal_pow_iff_le_addVal`
+in the Tau Ceti library (https://github.com/TauCetiProject/TauCeti, Apache 2.0 license). -/
+theorem mem_maximalIdeal_pow_iff {n : ℕ} {x : R} :
+    x ∈ maximalIdeal R ^ n ↔ (n : ℕ∞) ≤ addVal R x := by
+  obtain ⟨ϖ, hϖ⟩ := exists_irreducible R
+  rw [hϖ.maximalIdeal_eq, Ideal.span_singleton_pow, Ideal.mem_span_singleton,
+    ← addVal_le_iff_dvd, hϖ.addVal_pow]
+
 theorem addVal_add {a b : R} : min (addVal R a) (addVal R b) ≤ addVal R (a + b) :=
   (addVal R).map_add _ _
 
